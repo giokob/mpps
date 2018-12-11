@@ -9,8 +9,10 @@ import (
 	"github.com/mpps/utils"
 )
 
-func dataReciver(conn *net.UDPConn, dataChannel chan<- []byte) {
-	data := make([]byte, 122)
+var byteCount = 122
+
+func dataReceiver(conn *net.UDPConn, dataChannel chan<- []byte) {
+	data := make([]byte, byteCount)
 	for {
 		_, _, err := conn.ReadFromUDP(data)
 		checkError(err)
@@ -18,19 +20,11 @@ func dataReciver(conn *net.UDPConn, dataChannel chan<- []byte) {
 	}
 }
 
-func main() {
-	addr := net.UDPAddr{net.ParseIP("127.0.0.1"), 22222, ""}
-	conn, err := net.ListenUDP("udp", &addr)
-	checkError(err)
-	defer conn.Close()
-
+func dataAnalyzer(dataChannel chan []byte) {
 	totalCounter := 0
 	lastSecondCounter := 0
 	invalid := 0
 	ticket := time.NewTicker(time.Second)
-	dataChannel := make(chan []byte, 10)
-	go dataReciver(conn, dataChannel)
-
 	for {
 		select {
 		case <-ticket.C:
@@ -50,6 +44,17 @@ func main() {
 			totalCounter++
 		}
 	}
+}
+
+func main() {
+	addr := net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 22222, Zone: ""}
+	conn, err := net.ListenUDP("udp", &addr)
+	checkError(err)
+	defer conn.Close()
+
+	dataChannel := make(chan []byte, 10)
+	go dataReceiver(conn, dataChannel)
+	dataAnalyzer(dataChannel)
 }
 
 func checkError(err error) {
