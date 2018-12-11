@@ -8,33 +8,32 @@ import (
 	"github.com/mpps/utils"
 )
 
-var NUMPACKETS int = 100000000
-var NUMTHREADS int = 8
+var numPackets = 100000000
+var numThreads = 8
 
-func sender(addr *net.UDPAddr, done chan<- int) {
+func sender(addr *net.UDPAddr, done chan<- bool, threadIndex, packetCount int) {
 	conn, err := net.DialUDP("udp", nil, addr)
 	checkError(err)
 	data := []byte("1234fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc")
-	for i := 0; i < NUMPACKETS/NUMTHREADS; i++ {
+	packetIndexStart := threadIndex * packetCount
+	packetIndexEnd := packetIndexStart + packetCount
+	for i := packetIndexStart; i < packetIndexEnd; i++ {
 		utils.AddSequence(data, i)
 		utils.AddCheckSum(data)
-		// fmt.Println(data)
-		// fmt.Println(readSequence(data))
-		// fmt.Println(checkSum(data))
 		_, e := conn.Write(data)
 		checkError(e)
 	}
-	done <- 1
+	done <- true
 }
 
 func main() {
-	serverAddr := net.UDPAddr{net.ParseIP("127.0.0.1"), 22222, ""}
-	done := make(chan int, NUMTHREADS)
-	for i := 0; i < NUMTHREADS; i++ {
-		go sender(&serverAddr, done)
+	serverAddr := net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 22222, Zone: ""}
+	done := make(chan bool, numThreads)
+	for i := 0; i < numThreads; i++ {
+		go sender(&serverAddr, done, i, numPackets/numThreads)
 	}
 
-	for i := 0; i < NUMTHREADS; i++ {
+	for i := 0; i < numThreads; i++ {
 		<-done
 	}
 }
